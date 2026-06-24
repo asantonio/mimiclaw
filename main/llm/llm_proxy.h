@@ -6,6 +6,7 @@
 #include <stdbool.h>
 
 #include "mimi_config.h"
+#include "llm_provider.h"
 
 /**
  * Initialize the LLM proxy. Reads API key and model from build-time secrets, then NVS.
@@ -36,6 +37,18 @@ const char *llm_get_provider(void);
  * Return the currently active model string.
  */
 const char *llm_get_model(void);
+
+/**
+ * Return the currently active provider descriptor (never NULL; falls back to anthropic).
+ */
+const llm_provider_t *llm_active_provider(void);
+
+/**
+ * Return true if an API key has been set (non-empty).
+ * Ollama (auth NONE) does not need a key, but callers can use this to warn when
+ * switching to a provider that does.
+ */
+bool llm_has_api_key(void);
 
 /* ── Tool Use Support ──────────────────────────────────────────── */
 

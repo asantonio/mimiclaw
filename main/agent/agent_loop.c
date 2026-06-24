@@ -1,8 +1,10 @@
 #include "agent_loop.h"
 #include "agent/context_builder.h"
+#include "agent/brain_cmd.h"
 #include "mimi_config.h"
 #include "bus/message_bus.h"
 #include "llm/llm_proxy.h"
+#include "llm/llm_provider.h"
 #include "memory/session_mgr.h"
 #include "tools/tool_registry.h"
 
@@ -191,6 +193,50 @@ static void agent_loop_task(void *arg)
         if (err != ESP_OK) continue;
 
         ESP_LOGI(TAG, "Processing message from %s:%s", msg.channel, msg.chat_id);
+
+        /* Runtime brain switch — handled before any LLM call so it works even
+         * when the active brain is unreachable. Channel-agnostic. */
+        brain_cmd_t bc;
+        if (brain_cmd_parse(msg.content, &bc)) {
+            char reply[192];
+            if (bc.action == BRAIN_SWITCH) {
+                if (llm_set_provider(bc.provider) == ESP_OK) {
+                    snprintf(reply, sizeof(reply), "\xF0\x9F\xA7\xA0 -> %s (%s)",
+                             bc.friendly, llm_get_model());
+                    /* Warn if the new provider needs an API key but none is set.
+                     * Note: the design uses a single shared key (not per-brain), so
+                     * this warning means "no key set at all", not "no key for this
+                     * specific brain". See concerns in task-4-report.md. */
+                    const llm_provider_t *prov = llm_active_provider();
+                    if ((prov->auth == LLM_AUTH_BEARER || prov->auth == LLM_AUTH_ANTHROPIC)
+                            && !llm_has_api_key()) {
+                        strncat(reply, " (no API key set)", sizeof(reply) - strlen(reply) - 1);
+                    }
+                } else {
+                    snprintf(reply, sizeof(reply), "switch failed: %s", bc.provider);
+                }
+            } else if (bc.action == BRAIN_STATUS) {
+                snprintf(reply, sizeof(reply), "\xF0\x9F\xA7\xA0 %s | model %s | %s",
+                         llm_get_provider(), llm_get_model(),
+                         llm_active_provider()->default_url);
+            } else { /* BRAIN_USAGE */
+                snprintf(reply, sizeof(reply),
+                         "usage: /brain claude|codex|local");
+            }
+            /* Reply on the SAME channel/chat, mirroring the outbound push pattern. */
+            mimi_msg_t out = {0};
+            strncpy(out.channel, msg.channel, sizeof(out.channel) - 1);
+            strncpy(out.chat_id, msg.chat_id, sizeof(out.chat_id) - 1);
+            out.content = strdup(reply);
+            if (out.content) {
+                if (message_bus_push_outbound(&out) != ESP_OK) {
+                    ESP_LOGW(TAG, "Outbound queue full, drop brain reply");
+                    free(out.content);
+                }
+            }
+            free(msg.content);   /* match normal path ownership — always freed at end of loop */
+            continue;            /* do NOT enter the agent/LLM loop */
+        }
 
         /* 1. Build system prompt */
         context_build_system_prompt(system_prompt, MIMI_CONTEXT_BUF_SIZE);

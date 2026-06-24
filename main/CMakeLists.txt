@@ -8,6 +8,7 @@ idf_component_register(
         "llm/llm_provider.c"
         "llm/llm_proxy.c"
         "agent/agent_loop.c"
+        "agent/brain_cmd.c"
         "agent/context_builder.c"
         "memory/memory_store.c"
         "memory/session_mgr.c"

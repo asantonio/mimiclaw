@@ -855,3 +855,6 @@ esp_err_t llm_set_provider(const char *provider)
 
 const char *llm_get_provider(void) { return s_provider; }
 const char *llm_get_model(void)    { return s_model; }
+
+const llm_provider_t *llm_active_provider(void) { return active_provider(); }
+bool llm_has_api_key(void) { return s_api_key[0] != '\0'; }
