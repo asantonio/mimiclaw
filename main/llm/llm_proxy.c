@@ -1,4 +1,5 @@
 #include "llm_proxy.h"
+#include "llm_provider.h"
 #include "mimi_config.h"
 #include "proxy/http_proxy.h"
 
@@ -182,18 +183,25 @@ static esp_err_t http_event_handler(esp_http_client_event_t *evt)
 
 /* ── Provider helpers ──────────────────────────────────────────── */
 
+static const llm_provider_t *active_provider(void)
+{
+    const llm_provider_t *p = llm_provider_lookup(s_provider);
+    return p ? p : llm_provider_lookup("anthropic");
+}
+
 static bool provider_is_openai(void)
 {
-    return strcmp(s_provider, "openai") == 0;
+    return active_provider()->dialect == LLM_DIALECT_OPENAI;
 }
 
 static const char *llm_api_url(void)
 {
-    return provider_is_openai() ? MIMI_OPENAI_API_URL : MIMI_LLM_API_URL;
+    return active_provider()->default_url;
 }
 
 static const char *llm_api_host(void)
 {
+    /* Used by the proxy path + Host header. Derive from the active URL. */
     return provider_is_openai() ? "api.openai.com" : "api.anthropic.com";
 }
 
