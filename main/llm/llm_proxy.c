@@ -396,7 +396,12 @@ static esp_err_t llm_http_via_proxy(const char *post_data, resp_buf_t *rb, int *
 static bool provider_requires_direct(void)
 {
     const char *url = llm_api_url();
-    return strncmp(url, "http://", 7) == 0;
+    /* Plain HTTP needs the direct path (proxy path is TLS-only on :443). */
+    if (strncmp(url, "http://", 7) == 0) return true;
+    /* Auth-less providers (Ollama) must never hit the proxy path, which would
+     * CONNECT to the dialect-derived host (api.openai.com) — force direct. */
+    if (active_provider()->auth == LLM_AUTH_NONE) return true;
+    return false;
 }
 
 static esp_err_t llm_http_call(const char *post_data, resp_buf_t *rb, int *out_status)
@@ -815,6 +820,13 @@ esp_err_t llm_chat_tools(const char *system_prompt,
 }
 
 /* ── NVS helpers ──────────────────────────────────────────────── */
+
+/* NOTE: the llm_set_* setters mutate process-global state (s_provider, s_model,
+ * s_ollama_url, s_api_key) without locking. They are called from the serial-CLI
+ * task and the agent-loop task (/brain). A switch concurrent with an in-flight
+ * llm_chat_tools() on the other core can cause a torn read (new provider, old
+ * model). Acceptable for v1 (one human-driven command at a time); add a mutex
+ * around the copies if concurrent automated switching is ever introduced. */
 
 esp_err_t llm_set_api_key(const char *api_key)
 {
