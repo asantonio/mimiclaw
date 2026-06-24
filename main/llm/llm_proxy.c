@@ -246,6 +246,21 @@ esp_err_t llm_proxy_init(void)
         nvs_close(nvs);
     }
 
+    /* Migrate legacy single "model" key into the active provider's per-brain key (one-time). */
+    {
+        nvs_handle_t mh;
+        if (nvs_open(MIMI_NVS_LLM, NVS_READWRITE, &mh) == ESP_OK) {
+            const char *key = active_provider()->model_nvs_key;
+            char buf[LLM_MODEL_MAX_LEN] = {0};
+            size_t len = sizeof(buf);
+            if (nvs_get_str(mh, key, buf, &len) != ESP_OK && s_model[0]) {
+                nvs_set_str(mh, key, s_model);  /* seed from whatever model is active now */
+                nvs_commit(mh);
+            }
+            nvs_close(mh);
+        }
+    }
+
     if (s_api_key[0]) {
         ESP_LOGI(TAG, "LLM proxy initialized (provider: %s, model: %s)", s_provider, s_model);
     } else {
@@ -805,7 +820,9 @@ esp_err_t llm_set_model(const char *model)
 {
     nvs_handle_t nvs;
     ESP_ERROR_CHECK(nvs_open(MIMI_NVS_LLM, NVS_READWRITE, &nvs));
-    ESP_ERROR_CHECK(nvs_set_str(nvs, MIMI_NVS_KEY_MODEL, model));
+    const char *key = active_provider()->model_nvs_key;   /* per-brain */
+    ESP_ERROR_CHECK(nvs_set_str(nvs, key, model));
+    ESP_ERROR_CHECK(nvs_set_str(nvs, MIMI_NVS_KEY_MODEL, model)); /* mirror active for config_show */
     ESP_ERROR_CHECK(nvs_commit(nvs));
     nvs_close(nvs);
 
@@ -816,13 +833,25 @@ esp_err_t llm_set_model(const char *model)
 
 esp_err_t llm_set_provider(const char *provider)
 {
+    const llm_provider_t *p = llm_provider_lookup(provider);
+    if (!p) return ESP_ERR_INVALID_ARG;         /* reject unknown providers */
     nvs_handle_t nvs;
     ESP_ERROR_CHECK(nvs_open(MIMI_NVS_LLM, NVS_READWRITE, &nvs));
     ESP_ERROR_CHECK(nvs_set_str(nvs, MIMI_NVS_KEY_PROVIDER, provider));
+    /* restore the per-brain model into the active slot */
+    char model_buf[LLM_MODEL_MAX_LEN] = {0};
+    size_t model_len = sizeof(model_buf);
+    if (nvs_get_str(nvs, p->model_nvs_key, model_buf, &model_len) == ESP_OK && model_buf[0]) {
+        nvs_set_str(nvs, MIMI_NVS_KEY_MODEL, model_buf);
+        safe_copy(s_model, sizeof(s_model), model_buf);
+    }
     ESP_ERROR_CHECK(nvs_commit(nvs));
     nvs_close(nvs);
 
     safe_copy(s_provider, sizeof(s_provider), provider);
-    ESP_LOGI(TAG, "Provider set to: %s", s_provider);
+    ESP_LOGI(TAG, "Provider set to: %s, model: %s", s_provider, s_model);
     return ESP_OK;
 }
+
+const char *llm_get_provider(void) { return s_provider; }
+const char *llm_get_model(void)    { return s_model; }

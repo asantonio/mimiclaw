@@ -23,9 +23,19 @@ esp_err_t llm_set_api_key(const char *api_key);
 esp_err_t llm_set_provider(const char *provider);
 
 /**
- * Save the model identifier to NVS.
+ * Save the model identifier to NVS (writes the active provider's per-brain key + legacy mirror).
  */
 esp_err_t llm_set_model(const char *model);
+
+/**
+ * Return the currently active provider name (e.g. "anthropic", "openai", "ollama").
+ */
+const char *llm_get_provider(void);
+
+/**
+ * Return the currently active model string.
+ */
+const char *llm_get_model(void);
 
 /* ── Tool Use Support ──────────────────────────────────────────── */
 
