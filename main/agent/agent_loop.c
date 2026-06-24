@@ -210,6 +210,7 @@ static void agent_loop_task(void *arg)
                     const llm_provider_t *prov = llm_active_provider();
                     if ((prov->auth == LLM_AUTH_BEARER || prov->auth == LLM_AUTH_ANTHROPIC)
                             && !llm_has_api_key()) {
+                        /* reply is a stack array; sizeof() gives its real capacity (intentional) */
                         strncat(reply, " (no API key set)", sizeof(reply) - strlen(reply) - 1);
                     }
                 } else {

@@ -39,6 +39,7 @@ bool brain_cmd_parse(const char *input, brain_cmd_t *out)
             return true;
         }
     }
+    memset(out->friendly, 0, sizeof(out->friendly));
     out->action = BRAIN_USAGE;   /* recognized /brain, unknown target */
     return true;
 }

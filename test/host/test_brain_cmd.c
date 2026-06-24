@@ -26,6 +26,14 @@ int main(void) {
     /* Unknown brain → usage */
     assert(brain_cmd_parse("/brain gpt9", &c) == true && c.action == BRAIN_USAGE);
 
+    /* I1: strengthened edge-case assertions */
+    assert(brain_cmd_parse(NULL, &c) == false);
+    assert(brain_cmd_parse("/brain\t", &c) == true && c.action == BRAIN_STATUS);
+    assert(brain_cmd_parse("/brain Claude", &c) == true && c.action == BRAIN_SWITCH
+           && strcmp(c.provider, "anthropic") == 0);
+    assert(brain_cmd_parse("/brain gpt9", &c) == true && c.action == BRAIN_USAGE
+           && c.friendly[0] == '\0');   /* friendly cleared on USAGE — see M3 */
+
     printf("all brain_cmd tests passed\n");
     return 0;
 }
