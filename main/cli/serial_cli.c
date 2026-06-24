@@ -171,6 +171,28 @@ static int cmd_set_model_provider(int argc, char **argv)
     return 0;
 }
 
+/* --- set_ollama_url command --- */
+static struct {
+    struct arg_str *url;
+    struct arg_end *end;
+} ollama_url_args;
+
+static int cmd_set_ollama_url(int argc, char **argv)
+{
+    int nerrors = arg_parse(argc, argv, (void **)&ollama_url_args);
+    if (nerrors != 0) {
+        arg_print_errors(stderr, ollama_url_args.end, argv[0]);
+        return 1;
+    }
+    esp_err_t err = llm_set_ollama_url(ollama_url_args.url->sval[0]);
+    if (err == ESP_OK) {
+        printf("Ollama URL saved.\n");
+    } else {
+        printf("Failed to save Ollama URL: %s\n", esp_err_to_name(err));
+    }
+    return (err == ESP_OK) ? 0 : 1;
+}
+
 /* --- memory_read command --- */
 static int cmd_memory_read(int argc, char **argv)
 {
@@ -887,7 +909,7 @@ esp_err_t serial_cli_init(void)
     esp_console_cmd_register(&model_cmd);
 
     /* set_model_provider */
-    provider_args.provider = arg_str1(NULL, NULL, "<provider>", "Model provider (anthropic|openai)");
+    provider_args.provider = arg_str1(NULL, NULL, "<provider>", "Model provider (anthropic|openai|ollama)");
     provider_args.end = arg_end(1);
     esp_console_cmd_t provider_cmd = {
         .command = "set_model_provider",
@@ -896,6 +918,17 @@ esp_err_t serial_cli_init(void)
         .argtable = &provider_args,
     };
     esp_console_cmd_register(&provider_cmd);
+
+    /* set_ollama_url */
+    ollama_url_args.url = arg_str1(NULL, NULL, "<url>", "Ollama base URL (e.g. http://host:11434/v1/chat/completions)");
+    ollama_url_args.end = arg_end(1);
+    esp_console_cmd_t ollama_url_cmd = {
+        .command = "set_ollama_url",
+        .help = "Override the Ollama base URL (persisted to NVS)",
+        .func = &cmd_set_ollama_url,
+        .argtable = &ollama_url_args,
+    };
+    esp_console_cmd_register(&ollama_url_cmd);
 
     /* skill_list */
     esp_console_cmd_t skill_list_cmd = {

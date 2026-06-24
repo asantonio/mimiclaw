@@ -29,6 +29,12 @@ esp_err_t llm_set_provider(const char *provider);
 esp_err_t llm_set_model(const char *model);
 
 /**
+ * Override the Ollama base URL, persisted to NVS key MIMI_NVS_KEY_OLLAMA_URL.
+ * Takes effect immediately (updates the in-memory static used by llm_api_url()).
+ */
+esp_err_t llm_set_ollama_url(const char *url);
+
+/**
  * Return the currently active provider name (e.g. "anthropic", "openai", "ollama").
  */
 const char *llm_get_provider(void);

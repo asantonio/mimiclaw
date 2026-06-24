@@ -22,6 +22,7 @@ static const char *TAG = "llm";
 static char s_api_key[LLM_API_KEY_MAX_LEN] = {0};
 static char s_model[LLM_MODEL_MAX_LEN] = MIMI_LLM_DEFAULT_MODEL;
 static char s_provider[16] = MIMI_LLM_PROVIDER_DEFAULT;
+static char s_ollama_url[160] = MIMI_OLLAMA_API_URL;
 
 static void llm_log_payload(const char *label, const char *payload)
 {
@@ -196,7 +197,9 @@ static bool provider_is_openai(void)
 
 static const char *llm_api_url(void)
 {
-    return active_provider()->default_url;
+    const llm_provider_t *p = active_provider();
+    if (strcmp(p->name, "ollama") == 0) return s_ollama_url;
+    return p->default_url;
 }
 
 static const char *llm_api_host(void)
@@ -244,6 +247,16 @@ esp_err_t llm_proxy_init(void)
             safe_copy(s_provider, sizeof(s_provider), provider_tmp);
         }
         nvs_close(nvs);
+    }
+
+    /* Read ollama_url override (leaves s_ollama_url at its default on a miss) */
+    {
+        nvs_handle_t h;
+        if (nvs_open(MIMI_NVS_LLM, NVS_READONLY, &h) == ESP_OK) {
+            size_t len = sizeof(s_ollama_url);
+            nvs_get_str(h, MIMI_NVS_KEY_OLLAMA_URL, s_ollama_url, &len);
+            nvs_close(h);
+        }
     }
 
     /* Migrate legacy single "model" key into the active provider's per-brain key (one-time). */
@@ -850,6 +863,19 @@ esp_err_t llm_set_provider(const char *provider)
 
     safe_copy(s_provider, sizeof(s_provider), provider);
     ESP_LOGI(TAG, "Provider set to: %s, model: %s", s_provider, s_model);
+    return ESP_OK;
+}
+
+esp_err_t llm_set_ollama_url(const char *url)
+{
+    nvs_handle_t nvs;
+    esp_err_t err = nvs_open(MIMI_NVS_LLM, NVS_READWRITE, &nvs);
+    if (err != ESP_OK) return err;
+    nvs_set_str(nvs, MIMI_NVS_KEY_OLLAMA_URL, url);
+    nvs_commit(nvs);
+    nvs_close(nvs);
+    safe_copy(s_ollama_url, sizeof(s_ollama_url), url);
+    ESP_LOGI(TAG, "Ollama URL set to: %s", s_ollama_url);
     return ESP_OK;
 }
 
