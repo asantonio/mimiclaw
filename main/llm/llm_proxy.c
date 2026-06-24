@@ -362,9 +362,18 @@ static esp_err_t llm_http_via_proxy(const char *post_data, resp_buf_t *rb, int *
 
 /* ── Shared HTTP dispatch ─────────────────────────────────────── */
 
+/* The proxy path hard-codes TLS on port 443 and cannot reach plain-HTTP
+ * endpoints (e.g. Ollama at http://strixhalo.lan:11434).  esp_http_client
+ * handles http:// natively, so force the direct path for those providers. */
+static bool provider_requires_direct(void)
+{
+    const char *url = llm_api_url();
+    return strncmp(url, "http://", 7) == 0;
+}
+
 static esp_err_t llm_http_call(const char *post_data, resp_buf_t *rb, int *out_status)
 {
-    if (http_proxy_is_enabled()) {
+    if (http_proxy_is_enabled() && !provider_requires_direct()) {
         return llm_http_via_proxy(post_data, rb, out_status);
     } else {
         return llm_http_direct(post_data, rb, out_status);
