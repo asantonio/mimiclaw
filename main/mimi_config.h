@@ -89,6 +89,9 @@
 #define MIMI_LLM_API_URL             "https://api.anthropic.com/v1/messages"
 #define MIMI_OPENAI_API_URL          "https://api.openai.com/v1/chat/completions"
 #define MIMI_OLLAMA_API_URL          "http://strixhalo.lan:11434/v1/chat/completions"
+#define MIMI_DEFAULT_MODEL_ANTHROPIC "claude-sonnet-4-6"
+#define MIMI_DEFAULT_MODEL_OPENAI    "gpt-4o"
+#define MIMI_DEFAULT_MODEL_OLLAMA    "qwen3:30b-a3b"
 #define MIMI_LLM_API_VERSION         "2023-06-01"
 #define MIMI_LLM_STREAM_BUF_SIZE     (32 * 1024)
 #define MIMI_LLM_LOG_VERBOSE_PAYLOAD 0

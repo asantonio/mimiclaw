@@ -13,6 +13,7 @@ typedef struct {
     llm_auth_t    auth;          /* auth header style */
     const char   *default_url;   /* full URL incl. scheme/host/port/path */
     const char   *model_nvs_key; /* per-brain model NVS key */
+    const char   *default_model; /* fallback model when this brain's NVS key is unset */
 } llm_provider_t;
 
 /* Look up a provider by name; returns NULL if unknown. */

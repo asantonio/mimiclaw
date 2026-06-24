@@ -869,6 +869,11 @@ esp_err_t llm_set_provider(const char *provider)
     if (nvs_get_str(nvs, p->model_nvs_key, model_buf, &model_len) == ESP_OK && model_buf[0]) {
         nvs_set_str(nvs, MIMI_NVS_KEY_MODEL, model_buf);
         safe_copy(s_model, sizeof(s_model), model_buf);
+    } else {
+        /* never configured for this brain — use the row's default model */
+        nvs_set_str(nvs, p->model_nvs_key, p->default_model);
+        nvs_set_str(nvs, MIMI_NVS_KEY_MODEL, p->default_model);
+        safe_copy(s_model, sizeof(s_model), p->default_model);
     }
     ESP_ERROR_CHECK(nvs_commit(nvs));
     nvs_close(nvs);
