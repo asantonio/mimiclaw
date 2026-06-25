@@ -15,6 +15,7 @@
 #include "channels/telegram/telegram_bot.h"
 #include "channels/feishu/feishu_bot.h"
 #include "llm/llm_proxy.h"
+#include "led/led_status.h"
 #include "agent/agent_loop.h"
 #include "memory/memory_store.h"
 #include "memory/session_mgr.h"
@@ -124,6 +125,7 @@ void app_main(void)
 
     /* Initialize subsystems */
     ESP_ERROR_CHECK(message_bus_init());
+    led_status_init();   /* status ring — early so it's alive through boot/WiFi */
     ESP_ERROR_CHECK(memory_store_init());
     ESP_ERROR_CHECK(skill_loader_init());
     ESP_ERROR_CHECK(session_mgr_init());

@@ -10,6 +10,7 @@ idf_component_register(
         "agent/agent_loop.c"
         "agent/brain_cmd.c"
         "agent/context_builder.c"
+        "led/led_status.c"
         "memory/memory_store.c"
         "memory/session_mgr.c"
         "gateway/ws_server.c"
@@ -31,5 +32,5 @@ idf_component_register(
     REQUIRES
         nvs_flash esp_wifi esp_netif esp_http_client esp_http_server
         esp_https_ota esp_event json spiffs console vfs app_update esp-tls
-        esp_timer esp_websocket_client esp_driver_gpio
+        esp_timer esp_websocket_client esp_driver_gpio led_strip
 )

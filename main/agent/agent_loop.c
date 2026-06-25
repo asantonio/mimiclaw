@@ -7,6 +7,7 @@
 #include "llm/llm_provider.h"
 #include "memory/session_mgr.h"
 #include "tools/tool_registry.h"
+#include "led/led_status.h"
 
 #include <string.h>
 #include <stdlib.h>
@@ -281,11 +282,13 @@ static void agent_loop_task(void *arg)
             }
 #endif
 
+            led_status_set(LED_STATE_THINKING);
             llm_response_t resp;
             err = llm_chat_tools(system_prompt, messages, tools_json, &resp);
 
             if (err != ESP_OK) {
                 ESP_LOGE(TAG, "LLM call failed: %s", esp_err_to_name(err));
+                led_status_set(LED_STATE_ERROR);
                 break;
             }
 
@@ -299,6 +302,7 @@ static void agent_loop_task(void *arg)
             }
 
             ESP_LOGI(TAG, "Tool use iteration %d: %d calls", iteration + 1, resp.call_count);
+            led_status_set(LED_STATE_TOOL);
 
             /* Append assistant message with content array */
             cJSON *asst_msg = cJSON_CreateObject();
@@ -345,9 +349,11 @@ static void agent_loop_task(void *arg)
                 free(final_text);
             } else {
                 final_text = NULL;
+                led_status_set(LED_STATE_REPLY);
             }
         } else {
             /* Error or empty response */
+            led_status_set(LED_STATE_ERROR);
             free(final_text);
             mimi_msg_t out = {0};
             strncpy(out.channel, msg.channel, sizeof(out.channel) - 1);
