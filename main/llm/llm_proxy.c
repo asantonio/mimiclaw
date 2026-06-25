@@ -288,6 +288,7 @@ static esp_err_t llm_http_direct(const char *post_data, resp_buf_t *rb, int *out
 {
     const char *url = llm_api_url();
     bool is_https = (strncmp(url, "https://", 8) == 0);
+    ESP_LOGI(TAG, "LLM HTTP transport=%s url=%s", is_https ? "TLS" : "TCP", url);
     esp_http_client_config_t config = {
         .url = url,
         .event_handler = http_event_handler,
