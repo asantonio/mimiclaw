@@ -604,7 +604,10 @@ esp_err_t llm_chat_tools(const char *system_prompt,
 {
     memset(resp, 0, sizeof(*resp));
 
-    if (s_api_key[0] == '\0') return ESP_ERR_INVALID_STATE;
+    /* Cloud providers require an API key; auth-less providers (Ollama) do not. */
+    if (active_provider()->auth != LLM_AUTH_NONE && s_api_key[0] == '\0') {
+        return ESP_ERR_INVALID_STATE;
+    }
 
     /* Build request body (non-streaming) */
     cJSON *body = cJSON_CreateObject();
