@@ -49,6 +49,10 @@ static esp_err_t i2s_setup(void)
         },
     };
     sc.clk_cfg.mclk_multiple = I2S_MCLK_MULTIPLE_256;   /* ES8311 mclk_div default = 256 */
+    /* Mono mode defaults to LEFT slot only; the ES8311 (mono codec) reads the other slot,
+     * so drive BOTH slots — the mono sample is replicated to L+R. (Fix found on-device:
+     * init succeeded but no sound until both slots were driven.) */
+    sc.slot_cfg.slot_mask = I2S_STD_SLOT_BOTH;
     ESP_RETURN_ON_ERROR(i2s_channel_init_std_mode(s_tx, &sc), TAG, "i2s_std");
     return i2s_channel_enable(s_tx);
 }
