@@ -19,6 +19,14 @@ int main(void) {
     assert(wav_parse_header((const unsigned char *)"nope", 4, &w) == false);
     assert(wav_parse_header(WAV, 8, &w) == false);
     assert(wav_parse_header(0, 100, &w) == false);
+
+    /* writer round-trips through the parser (puck capture format: 22050 mono 16-bit) */
+    unsigned char hdr[64];
+    assert(wav_write_header(hdr, 22050, 16, 1, 220500) == WAV_HEADER_SIZE);
+    wav_info_t r;
+    assert(wav_parse_header(hdr, WAV_HEADER_SIZE, &r) == true);
+    assert(r.sample_rate == 22050 && r.bits == 16 && r.channels == 1 && r.data_offset == 44);
+
     printf("all wav tests passed\n");
     return 0;
 }

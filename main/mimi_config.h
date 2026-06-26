@@ -99,6 +99,12 @@
  * homelab services/mimiclaw-piper/). Rate must match MIMI_AUDIO_SAMPLE_RATE. */
 #define MIMI_PIPER_URL               "http://strixhalo.lan:5002/api/tts"
 #define MIMI_VOICE_OUT_DEFAULT       true
+
+/* Voice in (STT): self-hosted faster-whisper HTTP service (see homelab
+ * services/mimiclaw-whisper/). POST a WAV -> {"text": "..."}. */
+#define MIMI_WHISPER_URL             "http://strixhalo.lan:5003/api/stt"
+#define MIMI_VOICE_REC_SECONDS       5     /* default capture window for the `ask` command */
+
 #define MIMI_LLM_LOG_VERBOSE_PAYLOAD 0
 #define MIMI_LLM_LOG_PREVIEW_BYTES   160
 

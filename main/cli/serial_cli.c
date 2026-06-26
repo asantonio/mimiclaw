@@ -13,6 +13,7 @@
 #include "heartbeat/heartbeat.h"
 #include "skills/skill_loader.h"
 #include "voice/voice_out.h"
+#include "voice/voice_in.h"
 #include "voice/audio_codec.h"
 
 #include <string.h>
@@ -251,6 +252,20 @@ static int cmd_mic_test(int argc, char **argv)
     }
     printf("recording %d ms from mics... (speak now)\n", ms);
     audio_record_test(ms);
+    return 0;
+}
+
+/* --- ask command (full voice loop: record -> STT -> agent -> spoken reply) --- */
+static int cmd_ask(int argc, char **argv)
+{
+    int secs = (argc > 1) ? atoi(argv[1]) : MIMI_VOICE_REC_SECONDS;
+    printf("ask: recording %d s, then transcribing... (speak now)\n", secs);
+    char heard[256] = {0};
+    if (!voice_in_ask(secs, heard, sizeof(heard))) {
+        printf("ask: no transcript (silence or STT error)\n");
+        return 1;
+    }
+    printf("ask: heard \"%s\" -> sent to agent\n", heard);
     return 0;
 }
 
@@ -1025,6 +1040,14 @@ esp_err_t serial_cli_init(void)
         .func = &cmd_mic_test,
     };
     esp_console_cmd_register(&mic_test_cmd);
+
+    /* ask */
+    esp_console_cmd_t ask_cmd = {
+        .command = "ask",
+        .help = "Record N seconds, transcribe (Whisper), send to the agent, speak the reply. Default 5s",
+        .func = &cmd_ask,
+    };
+    esp_console_cmd_register(&ask_cmd);
 
     /* skill_list */
     esp_console_cmd_t skill_list_cmd = {

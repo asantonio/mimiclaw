@@ -96,6 +96,9 @@ static void outbound_dispatch_task(void *arg)
             }
         } else if (strcmp(msg.channel, MIMI_CHAN_SYSTEM) == 0) {
             ESP_LOGI(TAG, "System message [%s]: %.128s", msg.chat_id, msg.content);
+        } else if (strcmp(msg.channel, MIMI_CHAN_VOICE) == 0) {
+            /* Reply was already spoken via voice_out's tap in the agent loop; nothing to send. */
+            ESP_LOGI(TAG, "Voice reply (spoken): %.128s", msg.content);
         } else {
             ESP_LOGW(TAG, "Unknown channel: %s", msg.channel);
         }

@@ -10,6 +10,7 @@
 #define MIMI_CHAN_WEBSOCKET  "websocket"
 #define MIMI_CHAN_CLI        "cli"
 #define MIMI_CHAN_SYSTEM     "system"
+#define MIMI_CHAN_VOICE      "voice"   /* mic -> STT -> agent; reply spoken via voice_out */
 
 /* Message types on the bus */
 typedef struct {
