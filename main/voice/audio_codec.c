@@ -72,6 +72,7 @@ static esp_err_t tca9555_enable_amp(void)
 static esp_err_t i2s_setup(void)
 {
     i2s_chan_config_t cc = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_0, I2S_ROLE_MASTER);
+    cc.auto_clear_after_cb = true;   /* emit zeros (silence) when no data, else the DMA loops the last buffer */
     ESP_RETURN_ON_ERROR(i2s_new_channel(&cc, &s_tx, NULL), TAG, "i2s_new");
     i2s_std_config_t sc = {
         .clk_cfg  = I2S_STD_CLK_DEFAULT_CONFIG(MIMI_AUDIO_SAMPLE_RATE),
