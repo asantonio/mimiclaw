@@ -12,6 +12,7 @@ idf_component_register(
         "agent/context_builder.c"
         "led/led_status.c"
         "voice/audio_codec.c"
+        "voice/wav.c"
         "memory/memory_store.c"
         "memory/session_mgr.c"
         "gateway/ws_server.c"
