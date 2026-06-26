@@ -42,7 +42,7 @@ static esp_err_t i2s_setup(void)
     ESP_RETURN_ON_ERROR(i2s_new_channel(&cc, &s_tx, NULL), TAG, "i2s_new");
     i2s_std_config_t sc = {
         .clk_cfg  = I2S_STD_CLK_DEFAULT_CONFIG(MIMI_AUDIO_SAMPLE_RATE),
-        .slot_cfg = I2S_STD_PHILIPS_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_MONO),
+        .slot_cfg = I2S_STD_PHILIPS_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_32BIT, I2S_SLOT_MODE_STEREO),
         .gpio_cfg = {
             .mclk = PIN_I2S_MCLK, .bclk = PIN_I2S_BCLK, .ws = PIN_I2S_WS,
             .dout = PIN_I2S_DOUT, .din = PIN_I2S_DIN,
@@ -87,10 +87,13 @@ esp_err_t audio_codec_init(void)
     s_play = esp_codec_dev_new(&dev_cfg);
     if (!s_play) { ESP_LOGE(TAG, "esp_codec_dev_new failed"); return ESP_FAIL; }
 
-    esp_codec_dev_set_out_vol(s_play, 70);
+    esp_codec_dev_set_out_vol(s_play, 80);
+    /* Open 32-bit stereo (matches the Waveshare demo's known-good config; the ES8311 in
+     * SCLK-clocked mode needs the wider 64*LRCK BCLK that 32-bit slots provide).
+     * audio_play_pcm() converts the 16-bit mono source -> 32-bit stereo. */
     esp_codec_dev_sample_info_t fs = {
-        .bits_per_sample = MIMI_AUDIO_BITS,
-        .channel = MIMI_AUDIO_CHANNELS,
+        .bits_per_sample = 32,
+        .channel = 2,
         .sample_rate = MIMI_AUDIO_SAMPLE_RATE,
     };
     if (esp_codec_dev_open(s_play, &fs) != 0) {
@@ -101,10 +104,28 @@ esp_err_t audio_codec_init(void)
     return ESP_OK;
 }
 
+/* Source is 16-bit mono; the codec is opened 32-bit stereo. Convert on the fly: each
+ * int16 sample s -> 32-bit (s<<16) duplicated to L+R. A 1-byte carry handles odd-length
+ * chunks split across calls (e.g. a streamed HTTP body). */
 esp_err_t audio_play_pcm(const uint8_t *data, size_t len)
 {
     if (!s_play) return ESP_ERR_INVALID_STATE;
-    return esp_codec_dev_write(s_play, (void *)data, (int)len) == 0 ? ESP_OK : ESP_FAIL;
+    static uint8_t carry;
+    static bool has_carry;
+    int32_t out[128];          /* 64 stereo frames per flush */
+    size_t oi = 0, i = 0;
+    while (i < len) {
+        int16_t s;
+        if (has_carry) { s = (int16_t)(carry | (data[i] << 8)); i += 1; has_carry = false; }
+        else if (i + 1 < len) { s = (int16_t)(data[i] | (data[i + 1] << 8)); i += 2; }
+        else { carry = data[i]; has_carry = true; break; }
+        int32_t v = (int32_t)s << 16;
+        out[oi++] = v;     /* left  */
+        out[oi++] = v;     /* right */
+        if (oi >= 128) { esp_codec_dev_write(s_play, out, (int)(oi * sizeof(int32_t))); oi = 0; }
+    }
+    if (oi) esp_codec_dev_write(s_play, out, (int)(oi * sizeof(int32_t)));
+    return ESP_OK;
 }
 
 void audio_play_volume(int vol)
@@ -123,7 +144,7 @@ void audio_play_tone(int freq_hz, int ms)
     while (done < total) {
         int n = (total - done > 256) ? 256 : (total - done);
         for (int i = 0; i < n; i++) {
-            buf[i] = (int16_t)(8000.0 * sin(ph));
+            buf[i] = (int16_t)(16000.0 * sin(ph));
             ph += step;
         }
         audio_play_pcm((uint8_t *)buf, (size_t)n * sizeof(int16_t));

@@ -222,8 +222,8 @@ static int cmd_play_tone(int argc, char **argv)
         printf("codec init failed\n");
         return 1;
     }
-    printf("playing 440Hz tone...\n");
-    audio_play_tone(440, 500);
+    printf("playing 440Hz tone (1.2s)...\n");
+    audio_play_tone(440, 1200);
     return 0;
 }
 
