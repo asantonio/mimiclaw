@@ -139,10 +139,10 @@ void app_main(void)
     ESP_ERROR_CHECK(cron_service_init());
     ESP_ERROR_CHECK(heartbeat_init());
     ESP_ERROR_CHECK(agent_loop_init());
-    voice_out_init();   /* TTS speaker-out: ES8311 codec + playback task */
 
     /* Start Serial CLI first (works without WiFi) */
     ESP_ERROR_CHECK(serial_cli_init());
+    voice_out_init();   /* TTS speaker-out: ES8311 codec + playback task (after CLI so its init logs are capturable) */
 
     /* Start WiFi */
     esp_err_t wifi_err = wifi_manager_start();

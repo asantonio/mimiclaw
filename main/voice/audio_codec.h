@@ -3,8 +3,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
-/* Must match the piper service output rate. en_US-lessac-medium is 22050 Hz. */
-#define MIMI_AUDIO_SAMPLE_RATE   22050
+/* Must match the piper service output rate. (16000 here while validating the codec —
+ * the demo's proven rate; bump to 22050 / a matching piper voice once sound is confirmed.) */
+#define MIMI_AUDIO_SAMPLE_RATE   16000
 #define MIMI_AUDIO_BITS          16
 #define MIMI_AUDIO_CHANNELS       1
 

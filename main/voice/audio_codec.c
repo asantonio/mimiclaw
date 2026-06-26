@@ -18,6 +18,12 @@
 #define PIN_I2S_DIN   GPIO_NUM_15   /* mic in — unused for output (sub-project 2) */
 #define PIN_I2S_DOUT  GPIO_NUM_16
 
+/* The speaker amp is gated by the TCA9555 I2C GPIO expander, pin EXIO8 (P1.0), active HIGH.
+ * (From the Waveshare schematic PA_CTRL + the Arduino demo Audio_PA_EN -> Set_EXIO(EXIO8, true).) */
+#define TCA9555_ADDR         0x20
+#define TCA9555_REG_OUTPUT1  0x03   /* output port 1 */
+#define TCA9555_REG_CONFIG1  0x07   /* direction port 1: bit=0 -> output */
+
 static const char *TAG = "audio";
 static i2c_master_bus_handle_t s_i2c;
 static i2s_chan_handle_t       s_tx;
@@ -34,6 +40,33 @@ static esp_err_t i2c_setup(void)
         .flags.enable_internal_pullup = true,
     };
     return i2c_new_master_bus(&cfg, &s_i2c);
+}
+
+/* Enable the speaker amplifier via TCA9555 EXIO8 (P1.0) -> output, HIGH.
+ * Read-modify-write so the expander's other pins (buttons on P1.1-1.3) are untouched. */
+static esp_err_t tca9555_enable_amp(void)
+{
+    i2c_master_dev_handle_t dev;
+    i2c_device_config_t dc = {
+        .dev_addr_length = I2C_ADDR_BIT_LEN_7,
+        .device_address = TCA9555_ADDR,
+        .scl_speed_hz = 100000,
+    };
+    ESP_RETURN_ON_ERROR(i2c_master_bus_add_device(s_i2c, &dc, &dev), TAG, "tca add");
+    uint8_t reg, val;
+    /* config port1: clear bit0 so IO8 is an output */
+    reg = TCA9555_REG_CONFIG1;
+    ESP_RETURN_ON_ERROR(i2c_master_transmit_receive(dev, &reg, 1, &val, 1, 1000), TAG, "tca rd cfg");
+    uint8_t cfg[2] = { TCA9555_REG_CONFIG1, (uint8_t)(val & ~0x01u) };
+    ESP_RETURN_ON_ERROR(i2c_master_transmit(dev, cfg, 2, 1000), TAG, "tca wr cfg");
+    /* output port1: set bit0 -> IO8 HIGH -> amp enabled */
+    reg = TCA9555_REG_OUTPUT1;
+    ESP_RETURN_ON_ERROR(i2c_master_transmit_receive(dev, &reg, 1, &val, 1, 1000), TAG, "tca rd out");
+    uint8_t out[2] = { TCA9555_REG_OUTPUT1, (uint8_t)(val | 0x01u) };
+    ESP_RETURN_ON_ERROR(i2c_master_transmit(dev, out, 2, 1000), TAG, "tca wr out");
+    i2c_master_bus_rm_device(dev);
+    ESP_LOGI(TAG, "speaker amp enabled (TCA9555 EXIO8 high)");
+    return ESP_OK;
 }
 
 static esp_err_t i2s_setup(void)
@@ -58,6 +91,7 @@ esp_err_t audio_codec_init(void)
 {
     if (s_play) return ESP_OK;   /* idempotent */
     ESP_RETURN_ON_ERROR(i2c_setup(), TAG, "i2c");
+    if (tca9555_enable_amp() != ESP_OK) ESP_LOGW(TAG, "amp enable (TCA9555) failed; speaker may stay silent");
     ESP_RETURN_ON_ERROR(i2s_setup(), TAG, "i2s");
 
     audio_codec_i2s_cfg_t i2s_cfg = { .port = I2S_NUM_0, .tx_handle = s_tx, .rx_handle = NULL };
@@ -112,8 +146,10 @@ esp_err_t audio_play_pcm(const uint8_t *data, size_t len)
     if (!s_play) return ESP_ERR_INVALID_STATE;
     static uint8_t carry;
     static bool has_carry;
+    static bool logged_rc;
     int32_t out[128];          /* 64 stereo frames per flush */
     size_t oi = 0, i = 0;
+    int rc = 0;
     while (i < len) {
         int16_t s;
         if (has_carry) { s = (int16_t)(carry | (data[i] << 8)); i += 1; has_carry = false; }
@@ -122,9 +158,10 @@ esp_err_t audio_play_pcm(const uint8_t *data, size_t len)
         int32_t v = (int32_t)s << 16;
         out[oi++] = v;     /* left  */
         out[oi++] = v;     /* right */
-        if (oi >= 128) { esp_codec_dev_write(s_play, out, (int)(oi * sizeof(int32_t))); oi = 0; }
+        if (oi >= 128) { rc = esp_codec_dev_write(s_play, out, (int)(oi * sizeof(int32_t))); oi = 0; }
     }
-    if (oi) esp_codec_dev_write(s_play, out, (int)(oi * sizeof(int32_t)));
+    if (oi) rc = esp_codec_dev_write(s_play, out, (int)(oi * sizeof(int32_t)));
+    if (!logged_rc) { logged_rc = true; ESP_LOGW(TAG, "first codec write rc=%d (0=OK)", rc); }
     return ESP_OK;
 }
 
