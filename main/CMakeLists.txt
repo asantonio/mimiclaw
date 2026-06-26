@@ -13,6 +13,7 @@ idf_component_register(
         "led/led_status.c"
         "voice/audio_codec.c"
         "voice/wav.c"
+        "voice/voice_out.c"
         "memory/memory_store.c"
         "memory/session_mgr.c"
         "gateway/ws_server.c"

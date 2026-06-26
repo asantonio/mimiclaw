@@ -94,6 +94,11 @@
 #define MIMI_DEFAULT_MODEL_OLLAMA    "qwen3:30b-a3b"
 #define MIMI_LLM_API_VERSION         "2023-06-01"
 #define MIMI_LLM_STREAM_BUF_SIZE     (32 * 1024)
+
+/* Voice out (TTS): self-hosted piper HTTP service. Set URL to the deploy host (see
+ * homelab services/mimiclaw-piper/). Rate must match MIMI_AUDIO_SAMPLE_RATE. */
+#define MIMI_PIPER_URL               "http://strixhalo.lan:5002/api/tts"
+#define MIMI_VOICE_OUT_DEFAULT       true
 #define MIMI_LLM_LOG_VERBOSE_PAYLOAD 0
 #define MIMI_LLM_LOG_PREVIEW_BYTES   160
 
