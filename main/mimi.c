@@ -16,6 +16,7 @@
 #include "channels/feishu/feishu_bot.h"
 #include "llm/llm_proxy.h"
 #include "led/led_status.h"
+#include "voice/voice_out.h"
 #include "agent/agent_loop.h"
 #include "memory/memory_store.h"
 #include "memory/session_mgr.h"
@@ -138,6 +139,7 @@ void app_main(void)
     ESP_ERROR_CHECK(cron_service_init());
     ESP_ERROR_CHECK(heartbeat_init());
     ESP_ERROR_CHECK(agent_loop_init());
+    voice_out_init();   /* TTS speaker-out: ES8311 codec + playback task */
 
     /* Start Serial CLI first (works without WiFi) */
     ESP_ERROR_CHECK(serial_cli_init());

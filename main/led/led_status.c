@@ -58,6 +58,9 @@ static void led_task(void *arg)
                 fill(60, 0, 0); /* red */
             }
             break;
+        case LED_STATE_SPEAKING:
+            fill(0, 40, 40);   /* teal */
+            break;
         case LED_STATE_IDLE:
         default:
             fill(2, 2, 2);     /* faint white = alive + idle */

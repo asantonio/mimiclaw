@@ -12,6 +12,8 @@
 #include "cron/cron_service.h"
 #include "heartbeat/heartbeat.h"
 #include "skills/skill_loader.h"
+#include "voice/voice_out.h"
+#include "voice/audio_codec.h"
 
 #include <string.h>
 #include <stdio.h>
@@ -191,6 +193,38 @@ static int cmd_set_ollama_url(int argc, char **argv)
         printf("Failed to save Ollama URL: %s\n", esp_err_to_name(err));
     }
     return (err == ESP_OK) ? 0 : 1;
+}
+
+/* --- set_voice_out command --- */
+static struct {
+    struct arg_str *state;
+    struct arg_end *end;
+} voice_out_args;
+
+static int cmd_set_voice_out(int argc, char **argv)
+{
+    int nerrors = arg_parse(argc, argv, (void **)&voice_out_args);
+    if (nerrors != 0) {
+        arg_print_errors(stderr, voice_out_args.end, argv[0]);
+        return 1;
+    }
+    bool on = strcmp(voice_out_args.state->sval[0], "on") == 0;
+    voice_out_set_enabled(on);
+    printf("voice_out: %s\n", on ? "on" : "off");
+    return 0;
+}
+
+/* --- play_tone command (ES8311 codec self-test) --- */
+static int cmd_play_tone(int argc, char **argv)
+{
+    (void)argc; (void)argv;
+    if (audio_codec_init() != ESP_OK) {
+        printf("codec init failed\n");
+        return 1;
+    }
+    printf("playing 440Hz tone...\n");
+    audio_play_tone(440, 500);
+    return 0;
 }
 
 /* --- memory_read command --- */
@@ -929,6 +963,25 @@ esp_err_t serial_cli_init(void)
         .argtable = &ollama_url_args,
     };
     esp_console_cmd_register(&ollama_url_cmd);
+
+    /* set_voice_out */
+    voice_out_args.state = arg_str1(NULL, NULL, "<on|off>", "Speak replies aloud via TTS");
+    voice_out_args.end = arg_end(1);
+    esp_console_cmd_t voice_out_cmd = {
+        .command = "set_voice_out",
+        .help = "Enable/disable speaking replies (piper TTS -> speaker)",
+        .func = &cmd_set_voice_out,
+        .argtable = &voice_out_args,
+    };
+    esp_console_cmd_register(&voice_out_cmd);
+
+    /* play_tone */
+    esp_console_cmd_t play_tone_cmd = {
+        .command = "play_tone",
+        .help = "Play a 440Hz test tone (ES8311 codec self-test)",
+        .func = &cmd_play_tone,
+    };
+    esp_console_cmd_register(&play_tone_cmd);
 
     /* skill_list */
     esp_console_cmd_t skill_list_cmd = {

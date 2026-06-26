@@ -8,6 +8,7 @@
 #include "memory/session_mgr.h"
 #include "tools/tool_registry.h"
 #include "led/led_status.h"
+#include "voice/voice_out.h"
 
 #include <string.h>
 #include <stdlib.h>
@@ -341,6 +342,7 @@ static void agent_loop_task(void *arg)
             mimi_msg_t out = {0};
             strncpy(out.channel, msg.channel, sizeof(out.channel) - 1);
             strncpy(out.chat_id, msg.chat_id, sizeof(out.chat_id) - 1);
+            voice_speak(final_text);   /* speak it (strdup's its own copy; no-op if voice off) */
             out.content = final_text;  /* transfer ownership */
             ESP_LOGI(TAG, "Queue final response to %s:%s (%d bytes)",
                      out.channel, out.chat_id, (int)strlen(final_text));

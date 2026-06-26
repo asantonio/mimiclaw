@@ -1,5 +1,6 @@
 #include "voice/voice_out.h"
 #include "voice/audio_codec.h"
+#include "led/led_status.h"
 #include "mimi_config.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
@@ -45,9 +46,11 @@ static void speak_one(const char *text)
     if (!cl) return;
     esp_http_client_set_header(cl, "Content-Type", "text/plain");
     esp_http_client_set_post_field(cl, text, strlen(text));
+    led_status_set(LED_STATE_SPEAKING);                 /* teal while fetching + playing */
     esp_err_t err = esp_http_client_perform(cl);
     int status = esp_http_client_get_status_code(cl);
     esp_http_client_cleanup(cl);
+    led_status_set(LED_STATE_IDLE);
     if (err != ESP_OK || status != 200) {
         ESP_LOGW(TAG, "TTS failed: %s status=%d", esp_err_to_name(err), status);
     }

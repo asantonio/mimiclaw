@@ -7,6 +7,7 @@ typedef enum {
     LED_STATE_TOOL,     /* executing a tool       -> amber          */
     LED_STATE_REPLY,    /* reply sent             -> brief green     */
     LED_STATE_ERROR,    /* LLM/HTTP failure       -> brief red       */
+    LED_STATE_SPEAKING, /* speaking a reply (TTS) -> teal            */
 } led_state_t;
 
 /* Initialise the ring (GPIO 38, 7x WS2812) and start the render task.
