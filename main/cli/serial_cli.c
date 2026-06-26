@@ -227,6 +227,33 @@ static int cmd_play_tone(int argc, char **argv)
     return 0;
 }
 
+/* --- i2c_scan command (mic-ADC bring-up diagnostic) --- */
+static int cmd_i2c_scan(int argc, char **argv)
+{
+    (void)argc; (void)argv;
+    if (audio_codec_init() != ESP_OK) {
+        printf("codec init failed\n");
+        return 1;
+    }
+    audio_i2c_scan();
+    return 0;
+}
+
+/* --- mic_test command (ES7210 capture self-test) --- */
+static int cmd_mic_test(int argc, char **argv)
+{
+    int ms = (argc > 1) ? atoi(argv[1]) : 2000;
+    if (ms < 100) ms = 100;
+    if (ms > 10000) ms = 10000;
+    if (audio_codec_init() != ESP_OK) {
+        printf("codec init failed\n");
+        return 1;
+    }
+    printf("recording %d ms from mics... (speak now)\n", ms);
+    audio_record_test(ms);
+    return 0;
+}
+
 /* --- memory_read command --- */
 static int cmd_memory_read(int argc, char **argv)
 {
@@ -982,6 +1009,22 @@ esp_err_t serial_cli_init(void)
         .func = &cmd_play_tone,
     };
     esp_console_cmd_register(&play_tone_cmd);
+
+    /* i2c_scan */
+    esp_console_cmd_t i2c_scan_cmd = {
+        .command = "i2c_scan",
+        .help = "Probe the I2C bus, list responding addresses (ES8311/TCA9555/ES7210)",
+        .func = &cmd_i2c_scan,
+    };
+    esp_console_cmd_register(&i2c_scan_cmd);
+
+    /* mic_test */
+    esp_console_cmd_t mic_test_cmd = {
+        .command = "mic_test",
+        .help = "Record N ms from the mics and log peak/RMS (ES7210 capture self-test). Default 2000ms",
+        .func = &cmd_mic_test,
+    };
+    esp_console_cmd_register(&mic_test_cmd);
 
     /* skill_list */
     esp_console_cmd_t skill_list_cmd = {
