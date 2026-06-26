@@ -49,10 +49,7 @@ static esp_err_t i2s_setup(void)
         },
     };
     sc.clk_cfg.mclk_multiple = I2S_MCLK_MULTIPLE_256;   /* ES8311 mclk_div default = 256 */
-    /* Mono mode defaults to LEFT slot only; the ES8311 (mono codec) reads the other slot,
-     * so drive BOTH slots — the mono sample is replicated to L+R. (Fix found on-device:
-     * init succeeded but no sound until both slots were driven.) */
-    sc.slot_cfg.slot_mask = I2S_STD_SLOT_BOTH;
+    /* (esp_codec_dev_open reconfigs the slot to BOTH from sample_info, so no manual slot_mask.) */
     ESP_RETURN_ON_ERROR(i2s_channel_init_std_mode(s_tx, &sc), TAG, "i2s_std");
     return i2s_channel_enable(s_tx);
 }
@@ -74,7 +71,7 @@ esp_err_t audio_codec_init(void)
         .gpio_if = audio_codec_new_gpio(),
         .codec_mode = ESP_CODEC_DEV_WORK_MODE_DAC,
         .pa_pin = -1,            /* no separate amp-enable line (GPIO_PWR_CTRL = -1) */
-        .use_mclk = true,
+        .use_mclk = false,       /* matches Waveshare demo — ES8311 clocks off SCLK, not MCLK */
     };
     const audio_codec_if_t *codec_if = es8311_codec_new(&es_cfg);
     if (!data_if || !ctrl_if || !codec_if) {
