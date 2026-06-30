@@ -16,6 +16,9 @@
 #ifndef MIMI_SECRET_TG_TOKEN
 #define MIMI_SECRET_TG_TOKEN        ""
 #endif
+#ifndef MIMI_SECRET_TG_ALLOWED_CHATS
+#define MIMI_SECRET_TG_ALLOWED_CHATS ""   /* empty => fail-closed (deny all) */
+#endif
 #ifndef MIMI_SECRET_API_KEY
 #define MIMI_SECRET_API_KEY         ""
 #endif

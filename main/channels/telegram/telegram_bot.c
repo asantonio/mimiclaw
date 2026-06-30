@@ -28,6 +28,30 @@ static int64_t s_last_offset_save_us = 0;
 static uint64_t s_seen_msg_keys[TG_DEDUP_CACHE_SIZE] = {0};
 static size_t s_seen_msg_idx = 0;
 
+/*
+ * Access control — only chat IDs in MIMI_SECRET_TG_ALLOWED_CHATS may reach the
+ * agent. Behavior (chosen 2026-06-26): single owner ID (a comma-separated list
+ * is also supported), and an empty list is FAIL-CLOSED — deny everyone — so a
+ * misconfigured build is locked down, never accidentally public. Matching is
+ * exact per token, so "12" never authorizes chat "1234".
+ */
+static bool tg_chat_is_allowed(const char *chat_id)
+{
+    const char *allow = MIMI_SECRET_TG_ALLOWED_CHATS;
+    if (allow[0] == '\0') return false;            /* fail-closed: no list, no access */
+
+    char list[128];
+    strncpy(list, allow, sizeof(list) - 1);
+    list[sizeof(list) - 1] = '\0';
+
+    char *save = NULL;
+    for (char *tok = strtok_r(list, ",", &save); tok; tok = strtok_r(NULL, ",", &save)) {
+        while (*tok == ' ') tok++;                  /* tolerate "111, 222" */
+        if (strcmp(tok, chat_id) == 0) return true;
+    }
+    return false;
+}
+
 /* HTTP response accumulator */
 typedef struct {
     char *buf;
@@ -340,6 +364,12 @@ static void process_updates(const char *json_str)
         } else if (cJSON_IsNumber(chat_id)) {
             snprintf(chat_id_str, sizeof(chat_id_str), "%.0f", chat_id->valuedouble);
         } else {
+            continue;
+        }
+
+        /* Access control: silently ignore anyone not on the allowlist. */
+        if (!tg_chat_is_allowed(chat_id_str)) {
+            ESP_LOGW(TAG, "Drop message from unauthorized chat %s", chat_id_str);
             continue;
         }
 
