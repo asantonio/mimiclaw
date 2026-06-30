@@ -8,7 +8,7 @@
 #include <stdbool.h>
 #include <ctype.h>
 #include "freertos/FreeRTOS.h"
-#include "freertos/timers.h"
+#include "freertos/task.h"
 #include "esp_log.h"
 
 static const char *TAG = "heartbeat";
@@ -17,7 +17,23 @@ static const char *TAG = "heartbeat";
     "Read " MIMI_HEARTBEAT_FILE " and follow any instructions or tasks listed there. " \
     "If nothing needs attention, reply with just: HEARTBEAT_OK"
 
-static TimerHandle_t s_heartbeat_timer = NULL;
+/*
+ * Heartbeat runs on its OWN FreeRTOS task — NOT a software-timer callback.
+ * The timer-daemon task ("Tmr Svc") has a small shared stack (ESP-IDF default
+ * 2048 B) and must never do file I/O; heartbeat_has_tasks() doing fopen/fgets
+ * there overflowed it and crash-rebooted the board every 30 min. A dedicated
+ * task gives this work a private, adequately sized stack and matches how
+ * cron/agent/telegram already run.
+ *
+ * Stack sized generously (6 KiB) on purpose: newlib stdio + the SPIFFS/VFS read
+ * path are stack-hungry, internal RAM is plentiful (~250 KiB free), and this
+ * board is painful to reflash (remote + physical BOOT/RESET buttons), so we err
+ * toward "definitely won't overflow." Trim later against uxTaskGetStackHighWaterMark().
+ */
+#define HEARTBEAT_TASK_STACK   6144    /* bytes */
+#define HEARTBEAT_TASK_PRIO    4
+
+static TaskHandle_t s_heartbeat_task = NULL;
 
 /* ── Content check ────────────────────────────────────────────── */
 
@@ -103,12 +119,15 @@ static bool heartbeat_send(void)
     return true;
 }
 
-/* ── Timer callback ───────────────────────────────────────────── */
+/* ── Heartbeat task ───────────────────────────────────────────── */
 
-static void heartbeat_timer_callback(TimerHandle_t xTimer)
+static void heartbeat_task(void *arg)
 {
-    (void)xTimer;
-    heartbeat_send();
+    (void)arg;
+    for (;;) {
+        vTaskDelay(pdMS_TO_TICKS(MIMI_HEARTBEAT_INTERVAL_MS));
+        heartbeat_send();   /* runs on THIS task's stack, not the timer daemon's */
+    }
 }
 
 /* ── Public API ───────────────────────────────────────────────── */
@@ -122,26 +141,23 @@ esp_err_t heartbeat_init(void)
 
 esp_err_t heartbeat_start(void)
 {
-    if (s_heartbeat_timer) {
-        ESP_LOGW(TAG, "Heartbeat timer already running");
+    if (s_heartbeat_task) {
+        ESP_LOGW(TAG, "Heartbeat task already running");
         return ESP_OK;
     }
 
-    s_heartbeat_timer = xTimerCreate(
+    BaseType_t ok = xTaskCreate(
+        heartbeat_task,
         "heartbeat",
-        pdMS_TO_TICKS(MIMI_HEARTBEAT_INTERVAL_MS),
-        pdTRUE,    /* auto-reload */
+        HEARTBEAT_TASK_STACK,
         NULL,
-        heartbeat_timer_callback
+        HEARTBEAT_TASK_PRIO,
+        &s_heartbeat_task
     );
 
-    if (!s_heartbeat_timer) {
-        ESP_LOGE(TAG, "Failed to create heartbeat timer");
-        return ESP_FAIL;
-    }
-
-    if (xTimerStart(s_heartbeat_timer, pdMS_TO_TICKS(1000)) != pdPASS) {
-        ESP_LOGE(TAG, "Failed to start heartbeat timer");
+    if (ok != pdPASS) {
+        s_heartbeat_task = NULL;
+        ESP_LOGE(TAG, "Failed to create heartbeat task");
         return ESP_FAIL;
     }
 
@@ -151,10 +167,9 @@ esp_err_t heartbeat_start(void)
 
 void heartbeat_stop(void)
 {
-    if (s_heartbeat_timer) {
-        xTimerStop(s_heartbeat_timer, pdMS_TO_TICKS(1000));
-        xTimerDelete(s_heartbeat_timer, pdMS_TO_TICKS(1000));
-        s_heartbeat_timer = NULL;
+    if (s_heartbeat_task) {
+        vTaskDelete(s_heartbeat_task);
+        s_heartbeat_task = NULL;
         ESP_LOGI(TAG, "Heartbeat stopped");
     }
 }
