@@ -33,6 +33,15 @@ static void led_task(void *arg)
         uint32_t elapsed_ms = (xTaskGetTickCount() - s_state_tick) * portTICK_PERIOD_MS;
 
         switch (st) {
+        case LED_STATE_LISTENING: {
+            /* triangle pulse in purple — distinct from THINKING's blue, signals
+             * the mic is recording (STT capture window). */
+            phase = (phase + 1) % 60;
+            int tri = (phase < 30) ? phase : (60 - phase);  /* 0..30..0 */
+            int lvl = 8 + (tri * 62 / 30);                  /* ~8..70   */
+            fill((uint8_t)lvl, 0, (uint8_t)lvl);            /* purple   */
+            break;
+        }
         case LED_STATE_THINKING: {
             /* triangle pulse: brightness ramps up then down over ~2.4 s */
             phase = (phase + 1) % 60;

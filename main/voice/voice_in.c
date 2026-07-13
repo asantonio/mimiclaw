@@ -85,7 +85,7 @@ bool voice_in_ask(int seconds, char *out_text, size_t out_len)
     wav_write_header(wav, MIMI_AUDIO_SAMPLE_RATE, MIMI_AUDIO_BITS, MIMI_AUDIO_CHANNELS, pcm_bytes);
 
     ESP_LOGI(TAG, "listening %d s (%u KB)...", seconds, (unsigned)(pcm_bytes / 1024));
-    led_status_set(LED_STATE_THINKING);                 /* TODO: dedicated LISTENING state */
+    led_status_set(LED_STATE_LISTENING);                /* pulsing purple while the mic records */
     esp_err_t rec = audio_record_pcm(wav + WAV_HEADER_SIZE, pcm_bytes);
     if (rec != ESP_OK) {
         ESP_LOGE(TAG, "capture failed");

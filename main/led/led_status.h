@@ -3,6 +3,7 @@
 /* Agent activity states shown on the WS2812 status ring. */
 typedef enum {
     LED_STATE_IDLE,     /* waiting for a message  -> dim white      */
+    LED_STATE_LISTENING,/* recording mic (STT)    -> pulsing purple  */
     LED_STATE_THINKING, /* LLM call in progress   -> pulsing blue   */
     LED_STATE_TOOL,     /* executing a tool       -> amber          */
     LED_STATE_REPLY,    /* reply sent             -> brief green     */
