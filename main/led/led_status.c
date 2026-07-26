@@ -20,7 +20,11 @@ static void fill(uint8_t r, uint8_t g, uint8_t b)
 {
     if (!s_strip) return;
     for (int i = 0; i < LED_COUNT; i++) {
-        led_strip_set_pixel(s_strip, i, r, g, b);
+        /* strip is RGB-wired but the component only has GRB/GRBW formats, so
+         * swap R<->G here. Unswapped: purple rendered cyan, SPEAKING teal
+         * rendered purple, REPLY green red, ERROR red green; blue/white
+         * states are swap-invariant, which is how this went unnoticed. */
+        led_strip_set_pixel(s_strip, i, g, r, b);
     }
     led_strip_refresh(s_strip);
 }
