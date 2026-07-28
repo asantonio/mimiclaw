@@ -246,13 +246,13 @@ esp_err_t audio_codec_record_init(void)
     s_rec = esp_codec_dev_new(&dev_cfg);
     if (!s_rec) { ESP_LOGE(TAG, "esp_codec_dev_new (rec) failed"); return ESP_FAIL; }
 
-    esp_codec_dev_set_in_gain(s_rec, 30.0f);
+    esp_codec_dev_set_in_gain(s_rec, 36.0f);   /* 30 dB captured couch-distance speech at ~-36 dBFS -> garbled STT */
     esp_codec_dev_sample_info_t fs = { .bits_per_sample = 32, .channel = 2, .sample_rate = MIMI_AUDIO_SAMPLE_RATE };
     if (esp_codec_dev_open(s_rec, &fs) != 0) {
         ESP_LOGE(TAG, "esp_codec_dev_open (rec) failed");
         return ESP_FAIL;
     }
-    ESP_LOGI(TAG, "ES7210 ready (%d Hz capture, 2 mics, gain 30 dB)", MIMI_AUDIO_SAMPLE_RATE);
+    ESP_LOGI(TAG, "ES7210 ready (%d Hz capture, 2 mics, gain 36 dB)", MIMI_AUDIO_SAMPLE_RATE);
     return ESP_OK;
 }
 
