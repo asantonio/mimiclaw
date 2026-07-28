@@ -127,6 +127,10 @@ esp_err_t wifi_manager_start(void)
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_cfg));
     ESP_ERROR_CHECK(esp_wifi_start());
+    /* Default WIFI_PS_MIN_MODEM naps the radio between beacons -> 100-300 ms
+     * latency bursts that underrun the unbuffered TTS stream (audible gaps).
+     * Same lesson as the XIAO camweb: streaming audio/video needs PS off. */
+    ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE));
 
     return ESP_OK;
 }
