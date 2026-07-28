@@ -8,6 +8,7 @@
 #include "esp_heap_caps.h"
 #include "esp_spiffs.h"
 #include "nvs_flash.h"
+#include "model_path.h"           /* esp-sr: esp_srmodel_init (wake word, sub-project #3) */
 
 #include "mimi_config.h"
 #include "bus/message_bus.h"
@@ -46,7 +47,9 @@ static esp_err_t init_spiffs(void)
 {
     esp_vfs_spiffs_conf_t conf = {
         .base_path = MIMI_SPIFFS_BASE,
-        .partition_label = NULL,
+        .partition_label = "spiffs",  /* explicit: the wake-word model partition also has
+                                        * subtype spiffs and sorts FIRST — a NULL label
+                                        * mounted (and formatted!) the model partition */
         .max_files = 10,
         .format_if_mount_failed = true,
     };
@@ -58,7 +61,7 @@ static esp_err_t init_spiffs(void)
     }
 
     size_t total = 0, used = 0;
-    esp_spiffs_info(NULL, &total, &used);
+    esp_spiffs_info(conf.partition_label, &total, &used);
     ESP_LOGI(TAG, "SPIFFS: total=%d, used=%d", (int)total, (int)used);
 
     return ESP_OK;
@@ -146,6 +149,20 @@ void app_main(void)
     /* Start Serial CLI first (works without WiFi) */
     ESP_ERROR_CHECK(serial_cli_init());
     voice_out_init();   /* TTS speaker-out: ES8311 codec + playback task (after CLI so its init logs are capturable) */
+
+    /* Sub-project #3 (wake word): enumerate srmodels from the model partition.
+     * Proves the esp-sr + repartition integration; detector task comes next. */
+    {
+        srmodel_list_t *sr = esp_srmodel_init("model");
+        ESP_LOGI(TAG, "SR init: sr=%p num=%d", (void*)sr, sr ? sr->num : -1);
+        if (sr) {
+            for (int i = 0; i < sr->num; i++)
+                ESP_LOGI(TAG, "SR model[%d]: %s", i, sr->model_name[i]);
+        } else {
+            ESP_LOGW(TAG, "SR: no models found in model partition");
+        }
+    }
+
 
     /* Start WiFi */
     esp_err_t wifi_err = wifi_manager_start();

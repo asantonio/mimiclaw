@@ -1,8 +1,14 @@
 # Name,    Type, SubType, Offset,   Size
+# Repartitioned 2026-07-27 for sub-project #3 (wake word): OTA slots 2->2.5MB
+# (esp-sr AFE+WakeNet code growth) + dedicated 1.5MB `model` partition for
+# srmodels.bin. SPIFFS shrank 11.81->9.31MB and MOVED (contents wiped on
+# reflash; skills re-seed from spiffs_data/, sessions accepted lost). NVS
+# untouched -> WiFi + Telegram token survive.
 nvs,       data, nvs,     0x9000,   0x6000
 otadata,   data, ota,     0xF000,   0x2000
 phy_init,  data, phy,     0x11000,  0x1000
-ota_0,     app,  ota_0,   0x20000,  0x200000
-ota_1,     app,  ota_1,   0x220000, 0x200000
-spiffs,    data, spiffs,  0x420000, 0xBD0000
+ota_0,     app,  ota_0,   0x20000,  0x280000
+ota_1,     app,  ota_1,   0x2A0000, 0x280000
+model,     data, spiffs,  0x520000, 0x180000
+spiffs,    data, spiffs,  0x6A0000, 0x950000
 coredump,  data, coredump,0xFF0000, 0x10000
