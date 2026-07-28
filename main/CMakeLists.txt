@@ -15,6 +15,7 @@ idf_component_register(
         "voice/wav.c"
         "voice/voice_out.c"
         "voice/voice_in.c"
+        "voice/wake.c"
         "memory/memory_store.c"
         "memory/session_mgr.c"
         "gateway/ws_server.c"

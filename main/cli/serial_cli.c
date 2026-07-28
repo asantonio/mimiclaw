@@ -14,6 +14,7 @@
 #include "skills/skill_loader.h"
 #include "voice/voice_out.h"
 #include "voice/voice_in.h"
+#include "voice/wake.h"
 #include "voice/audio_codec.h"
 
 #include <string.h>
@@ -251,7 +252,36 @@ static int cmd_mic_test(int argc, char **argv)
         return 1;
     }
     printf("recording %d ms from mics... (speak now)\n", ms);
+    if (!wake_mic_acquire(1500)) printf("warning: wake detector busy; proceeding\n");
     audio_record_test(ms);
+    wake_mic_release();
+    return 0;
+}
+
+/* --- wake word commands (sub-project #3) --- */
+static int cmd_wake_status(int argc, char **argv)
+{
+    if (!wake_available()) { printf("Wake word: unavailable (no model or mic)\n"); return 0; }
+    uint32_t n = 0, last = 0;
+    const char *model = NULL;
+    wake_stats(&n, &last, &model);
+    printf("Wake word: %s (model %s)\n", wake_get_enabled() ? "ENABLED" : "DISABLED",
+           model ? model : "?");
+    printf("Detections since boot: %lu", (unsigned long)n);
+    if (n) printf(" (last at uptime %lus)", (unsigned long)(last / 1000));
+    printf("\n");
+    return 0;
+}
+
+static int cmd_set_wakeword(int argc, char **argv)
+{
+    if (argc < 2 || (strcmp(argv[1], "on") != 0 && strcmp(argv[1], "off") != 0)) {
+        printf("usage: set_wakeword on|off\n");
+        return 1;
+    }
+    bool on = strcmp(argv[1], "on") == 0;
+    wake_set_enabled(on);
+    printf("Wake word %s (persisted)\n", on ? "enabled" : "disabled");
     return 0;
 }
 
@@ -1048,6 +1078,22 @@ esp_err_t serial_cli_init(void)
         .func = &cmd_ask,
     };
     esp_console_cmd_register(&ask_cmd);
+
+    /* wake_status */
+    esp_console_cmd_t wake_status_cmd = {
+        .command = "wake_status",
+        .help = "Wake-word detector state + detection count",
+        .func = &cmd_wake_status,
+    };
+    esp_console_cmd_register(&wake_status_cmd);
+
+    /* set_wakeword */
+    esp_console_cmd_t set_wakeword_cmd = {
+        .command = "set_wakeword",
+        .help = "set_wakeword on|off - toggle the Jarvis wake word (NVS-persisted)",
+        .func = &cmd_set_wakeword,
+    };
+    esp_console_cmd_register(&set_wakeword_cmd);
 
     /* skill_list */
     esp_console_cmd_t skill_list_cmd = {

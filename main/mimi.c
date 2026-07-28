@@ -18,6 +18,7 @@
 #include "llm/llm_proxy.h"
 #include "led/led_status.h"
 #include "voice/voice_out.h"
+#include "voice/wake.h"
 #include "agent/agent_loop.h"
 #include "memory/memory_store.h"
 #include "memory/session_mgr.h"
@@ -162,6 +163,7 @@ void app_main(void)
             ESP_LOGW(TAG, "SR: no models found in model partition");
         }
     }
+    wake_init();        /* "Jarvis" detector task (parks for ask/mic_test, deaf during TTS) */
 
 
     /* Start WiFi */

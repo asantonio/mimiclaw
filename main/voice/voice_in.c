@@ -1,5 +1,6 @@
 #include "voice/voice_in.h"
 #include "voice/audio_codec.h"
+#include "voice/wake.h"
 #include "voice/wav.h"
 #include "led/led_status.h"
 #include "bus/message_bus.h"
@@ -84,10 +85,14 @@ bool voice_in_ask(int seconds, char *out_text, size_t out_len)
 
     wav_write_header(wav, MIMI_AUDIO_SAMPLE_RATE, MIMI_AUDIO_BITS, MIMI_AUDIO_CHANNELS, pcm_bytes);
 
+    if (!wake_mic_acquire(1500)) {
+        ESP_LOGW(TAG, "wake detector did not park; recording anyway");
+    }
     ESP_LOGI(TAG, "listening %d s (%u KB)...", seconds, (unsigned)(pcm_bytes / 1024));
     audio_play_tone(880, 150);                          /* audible go-cue right before the window opens */
     led_status_set(LED_STATE_LISTENING);                /* pulsing purple while the mic records */
     esp_err_t rec = audio_record_pcm(wav + WAV_HEADER_SIZE, pcm_bytes);
+    wake_mic_release();
     if (rec != ESP_OK) {
         ESP_LOGE(TAG, "capture failed");
         led_status_set(LED_STATE_ERROR);

@@ -155,6 +155,7 @@
 #define MIMI_NVS_TG                  "tg_config"
 #define MIMI_NVS_FEISHU              "feishu_config"
 #define MIMI_NVS_LLM                 "llm_config"
+#define MIMI_NVS_WAKE                "wake_config"
 #define MIMI_NVS_PROXY               "proxy_config"
 #define MIMI_NVS_SEARCH              "search_config"
 
