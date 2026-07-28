@@ -110,7 +110,9 @@ bool voice_in_ask(int seconds, char *out_text, size_t out_len)
         led_status_set(LED_STATE_ERROR);
         return false;
     }
-    led_status_set(LED_STATE_IDLE);
+    /* stay on THINKING (blue) — transcript is heading to the brain; SPEAKING
+     * (teal) takes over at the reply. IDLE here left a confusing white gap. */
+    led_status_set(LED_STATE_THINKING);
     ESP_LOGI(TAG, "heard: \"%s\"", text);
     if (out_text && out_len) snprintf(out_text, out_len, "%s", text);
 
