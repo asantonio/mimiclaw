@@ -258,6 +258,20 @@ static int cmd_mic_test(int argc, char **argv)
     return 0;
 }
 
+/* --- say command (speak arbitrary text through the TTS path) --- */
+static int cmd_say(int argc, char **argv)
+{
+    if (argc < 2) { printf("usage: say <text...>\n"); return 1; }
+    char text[256] = {0};
+    size_t off = 0;
+    for (int i = 1; i < argc && off < sizeof(text) - 2; i++) {
+        off += snprintf(text + off, sizeof(text) - off, "%s%s", (i > 1) ? " " : "", argv[i]);
+    }
+    printf("speaking: %s\n", text);
+    voice_speak(text);
+    return 0;
+}
+
 /* --- wake word commands (sub-project #3) --- */
 static int cmd_wake_status(int argc, char **argv)
 {
@@ -1078,6 +1092,14 @@ esp_err_t serial_cli_init(void)
         .func = &cmd_ask,
     };
     esp_console_cmd_register(&ask_cmd);
+
+    /* say */
+    esp_console_cmd_t say_cmd = {
+        .command = "say",
+        .help = "Speak the given text through the TTS voice (speaker test)",
+        .func = &cmd_say,
+    };
+    esp_console_cmd_register(&say_cmd);
 
     /* wake_status */
     esp_console_cmd_t wake_status_cmd = {
