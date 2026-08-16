@@ -19,6 +19,7 @@
 #include "led/led_status.h"
 #include "voice/voice_out.h"
 #include "voice/wake.h"
+#include "control/button.h"
 #include "agent/agent_loop.h"
 #include "memory/memory_store.h"
 #include "memory/session_mgr.h"
@@ -164,6 +165,8 @@ void app_main(void)
         }
     }
     wake_init();        /* "Jarvis" detector task (parks for ask/mic_test, deaf during TTS) */
+    button_init();      /* BOOT (GPIO0) long-press toggles the wake word on/off
+                         * via the same NVS-persisted path as set_wakeword */
 
 
     /* Start WiFi */

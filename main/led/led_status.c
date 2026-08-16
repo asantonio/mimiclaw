@@ -1,5 +1,6 @@
 #include "led_status.h"
 #include "led_strip.h"
+#include "voice/wake.h"   /* wake_available/wake_get_enabled: reflect wake state at idle */
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_log.h"
@@ -76,7 +77,15 @@ static void led_task(void *arg)
             break;
         case LED_STATE_IDLE:
         default:
-            fill(2, 2, 2);     /* faint white = alive + idle */
+            /* Resting ring. While the "Jarvis" wake word is DISABLED (via the
+             * BOOT button or `set_wakeword off`) show a steady dim RED instead of
+             * faint white -- a persistent "listening disabled" indicator that
+             * also re-appears after any transient state reverts to idle. fill()
+             * already swaps R<->G for the GRB driver, so this renders as real red. */
+            if (wake_available() && !wake_get_enabled())
+                fill(20, 0, 0);    /* dim red     = wake listening DISABLED */
+            else
+                fill(2, 2, 2);     /* faint white = alive + idle           */
             break;
         }
 
