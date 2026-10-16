@@ -46,6 +46,9 @@
 #ifndef MIMI_SECRET_FEISHU_APP_SECRET
 #define MIMI_SECRET_FEISHU_APP_SECRET ""
 #endif
+#ifndef MIMI_SECRET_ONBOARD_AP_PASS
+#define MIMI_SECRET_ONBOARD_AP_PASS ""   /* 8-63 chars => WPA2 setup hotspot; empty => open */
+#endif
 #ifndef MIMI_SECRET_TAVILY_KEY
 #define MIMI_SECRET_TAVILY_KEY      ""
 #endif

@@ -192,9 +192,10 @@ void app_main(void)
         return;  /* unreachable */
     }
 
-    if (wifi_onboard_start(WIFI_ONBOARD_MODE_ADMIN) != ESP_OK) {
-        ESP_LOGW(TAG, "Local admin portal unavailable; continuing without config hotspot");
-    }
+    /* No config hotspot while Wi-Fi works: upstream started the ADMIN portal
+     * here, an always-on hotspot whose /save let anyone in radio range rewrite
+     * the config. Change settings over the serial CLI instead; the captive
+     * portal above still covers a board that cannot reach its network. */
 
     {
         /* Outbound dispatch task should start first to avoid dropping early replies. */

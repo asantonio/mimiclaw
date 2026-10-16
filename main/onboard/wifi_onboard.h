@@ -10,6 +10,7 @@ typedef enum {
 /**
  * Start WiFi onboarding/configuration portal.
  * CAPTIVE mode opens DNS hijack + config page and blocks forever.
- * ADMIN mode keeps a local config hotspot alive without captive redirects.
+ * ADMIN mode keeps a local config hotspot alive without captive redirects
+ * (no longer started by mimi.c - see the note there).
  */
 esp_err_t wifi_onboard_start(wifi_onboard_mode_t mode);

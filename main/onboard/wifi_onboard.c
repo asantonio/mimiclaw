@@ -20,12 +20,18 @@
 #include "lwip/netdb.h"
 
 static const char *TAG = "onboard";
+
+/* What /config shows for a stored secret, and what /save treats as "keep the
+ * stored value". The portal never hands a secret back out: anyone who can
+ * reach it (it is an open hotspot unless MIMI_SECRET_ONBOARD_AP_PASS is set)
+ * could otherwise read the Wi-Fi password and every API token. */
+#define SECRET_MASK "********"
 static httpd_handle_t s_server = NULL;
 static bool s_captive_mode = false;
 
 static void json_add_effective_config(cJSON *root, const char *json_key,
                                       const char *ns, const char *nvs_key,
-                                      const char *build_val)
+                                      const char *build_val, bool secret)
 {
     char value[256] = {0};
     bool found = false;
@@ -41,6 +47,9 @@ static void json_add_effective_config(cJSON *root, const char *json_key,
 
     if (!found && build_val) {
         strlcpy(value, build_val, sizeof(value));
+    }
+    if (secret && value[0]) {
+        strlcpy(value, SECRET_MASK, sizeof(value));    /* set, never shown */
     }
 
     cJSON_AddStringToObject(root, json_key, value);
@@ -215,19 +224,19 @@ static esp_err_t http_get_config(httpd_req_t *req)
         return ESP_FAIL;
     }
 
-    json_add_effective_config(root, "ssid", MIMI_NVS_WIFI, MIMI_NVS_KEY_SSID, MIMI_SECRET_WIFI_SSID);
-    json_add_effective_config(root, "password", MIMI_NVS_WIFI, MIMI_NVS_KEY_PASS, MIMI_SECRET_WIFI_PASS);
-    json_add_effective_config(root, "api_key", MIMI_NVS_LLM, MIMI_NVS_KEY_API_KEY, MIMI_SECRET_API_KEY);
-    json_add_effective_config(root, "model", MIMI_NVS_LLM, MIMI_NVS_KEY_MODEL, MIMI_SECRET_MODEL);
-    json_add_effective_config(root, "provider", MIMI_NVS_LLM, MIMI_NVS_KEY_PROVIDER, MIMI_SECRET_MODEL_PROVIDER);
-    json_add_effective_config(root, "tg_token", MIMI_NVS_TG, MIMI_NVS_KEY_TG_TOKEN, MIMI_SECRET_TG_TOKEN);
-    json_add_effective_config(root, "feishu_app_id", MIMI_NVS_FEISHU, MIMI_NVS_KEY_FEISHU_APP_ID, MIMI_SECRET_FEISHU_APP_ID);
-    json_add_effective_config(root, "feishu_app_secret", MIMI_NVS_FEISHU, MIMI_NVS_KEY_FEISHU_APP_SECRET, MIMI_SECRET_FEISHU_APP_SECRET);
-    json_add_effective_config(root, "proxy_host", MIMI_NVS_PROXY, MIMI_NVS_KEY_PROXY_HOST, MIMI_SECRET_PROXY_HOST);
+    json_add_effective_config(root, "ssid", MIMI_NVS_WIFI, MIMI_NVS_KEY_SSID, MIMI_SECRET_WIFI_SSID, false);
+    json_add_effective_config(root, "password", MIMI_NVS_WIFI, MIMI_NVS_KEY_PASS, MIMI_SECRET_WIFI_PASS, true);
+    json_add_effective_config(root, "api_key", MIMI_NVS_LLM, MIMI_NVS_KEY_API_KEY, MIMI_SECRET_API_KEY, true);
+    json_add_effective_config(root, "model", MIMI_NVS_LLM, MIMI_NVS_KEY_MODEL, MIMI_SECRET_MODEL, false);
+    json_add_effective_config(root, "provider", MIMI_NVS_LLM, MIMI_NVS_KEY_PROVIDER, MIMI_SECRET_MODEL_PROVIDER, false);
+    json_add_effective_config(root, "tg_token", MIMI_NVS_TG, MIMI_NVS_KEY_TG_TOKEN, MIMI_SECRET_TG_TOKEN, true);
+    json_add_effective_config(root, "feishu_app_id", MIMI_NVS_FEISHU, MIMI_NVS_KEY_FEISHU_APP_ID, MIMI_SECRET_FEISHU_APP_ID, false);
+    json_add_effective_config(root, "feishu_app_secret", MIMI_NVS_FEISHU, MIMI_NVS_KEY_FEISHU_APP_SECRET, MIMI_SECRET_FEISHU_APP_SECRET, true);
+    json_add_effective_config(root, "proxy_host", MIMI_NVS_PROXY, MIMI_NVS_KEY_PROXY_HOST, MIMI_SECRET_PROXY_HOST, false);
     json_add_effective_config_u16(root, "proxy_port", MIMI_NVS_PROXY, MIMI_NVS_KEY_PROXY_PORT, MIMI_SECRET_PROXY_PORT);
-    json_add_effective_config(root, "proxy_type", MIMI_NVS_PROXY, MIMI_NVS_KEY_PROXY_TYPE, MIMI_SECRET_PROXY_TYPE);
-    json_add_effective_config(root, "search_key", MIMI_NVS_SEARCH, MIMI_NVS_KEY_API_KEY, MIMI_SECRET_SEARCH_KEY);
-    json_add_effective_config(root, "tavily_key", MIMI_NVS_SEARCH, MIMI_NVS_KEY_TAVILY_KEY, MIMI_SECRET_TAVILY_KEY);
+    json_add_effective_config(root, "proxy_type", MIMI_NVS_PROXY, MIMI_NVS_KEY_PROXY_TYPE, MIMI_SECRET_PROXY_TYPE, false);
+    json_add_effective_config(root, "search_key", MIMI_NVS_SEARCH, MIMI_NVS_KEY_API_KEY, MIMI_SECRET_SEARCH_KEY, true);
+    json_add_effective_config(root, "tavily_key", MIMI_NVS_SEARCH, MIMI_NVS_KEY_TAVILY_KEY, MIMI_SECRET_TAVILY_KEY, true);
 
     char *json = cJSON_PrintUnformatted(root);
     cJSON_Delete(root);
@@ -245,7 +254,7 @@ static esp_err_t http_get_config(httpd_req_t *req)
 
 /*
  * Sync one JSON string field into NVS.
- * - missing field: leave current NVS value unchanged
+ * - missing field, or SECRET_MASK echoed back by the page: leave unchanged
  * - empty string: erase current NVS value
  * - non-empty string: save/update current NVS value
  */
@@ -254,6 +263,7 @@ static void nvs_sync_field(cJSON *root, const char *json_key,
 {
     cJSON *item = cJSON_GetObjectItem(root, json_key);
     if (!item || !cJSON_IsString(item)) return;
+    if (strcmp(item->valuestring, SECRET_MASK) == 0) return;
 
     nvs_handle_t nvs;
     if (nvs_open(ns, NVS_READWRITE, &nvs) == ESP_OK) {
@@ -402,13 +412,23 @@ static esp_err_t start_softap(bool keep_sta)
     strncpy((char *)ap_cfg.ap.ssid, ssid, sizeof(ap_cfg.ap.ssid) - 1);
     ap_cfg.ap.ssid_len = strlen(ssid);
 
+    /* WPA2 when a hotspot password is built in; WPA2 needs 8..63 chars. */
+    const char *ap_pass = MIMI_SECRET_ONBOARD_AP_PASS;
+    bool secured = strlen(ap_pass) >= 8 && strlen(ap_pass) <= 63;
+    if (secured) {
+        ap_cfg.ap.authmode = WIFI_AUTH_WPA2_PSK;
+        strlcpy((char *)ap_cfg.ap.password, ap_pass, sizeof(ap_cfg.ap.password));
+    } else if (ap_pass[0]) {
+        ESP_LOGW(TAG, "MIMI_SECRET_ONBOARD_AP_PASS must be 8-63 chars; hotspot left open");
+    }
+
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &ap_cfg));
     esp_err_t err = esp_wifi_start();
     if (err != ESP_OK && !(keep_sta && err == ESP_ERR_WIFI_CONN)) {
         return err;
     }
 
-    ESP_LOGI(TAG, "Soft AP started: %s (open)", ssid);
+    ESP_LOGI(TAG, "Soft AP started: %s (%s)", ssid, secured ? "WPA2" : "open");
     return ESP_OK;
 }
 
